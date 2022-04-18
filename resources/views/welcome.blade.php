@@ -413,11 +413,22 @@
         body {
             font-family: 'Nunito', sans-serif;
         }
+
+        @media screen and (max-width: 767px) {
+            #map{
+                width: 100%;
+                height: calc(100vh - 48px) !important;
+            }
+
+            #main{
+                flex-direction: column !important;
+            }
+        }
     </style>
 </head>
 <body class="antialiased">
 <div
-    class="relative flex items-top justify-center min-h-screen bg-gray-100 dark:bg-gray-900 sm:items-center py-4 sm:pt-0">
+    class="relative flex items-top justify-center min-h-screen bg-gray-100 dark:bg-gray-900 sm:items-center sm:pt-0" id="main">
     @if (Route::has('login'))
         <div class="hidden fixed top-0 right-0 px-6 py-4 sm:block">
             @auth
@@ -462,33 +473,75 @@
             })
         };
         map.on('load', function () {
-            // Add a GeoJSON source containing place coordinates and information.
-            map.addSource('places', {
-                'type': 'geojson',
-                'data': places
-            });
+            map.loadImage(
+                'http://maps.google.com/mapfiles/ms/icons/blue.png',
+                function (error, image) {
+                    if (error) throw error;
+                    map.addImage('custom-marker', image);
 
-            map.addLayer({
-                'id': 'poi-labels',
-                'type': 'symbol',
-                'source': 'places',
-                'layout': {
-                    'text-field': ['get', 'description'],
-                    'text-variable-anchor': ['top', 'bottom', 'left', 'right'],
-                    'text-radial-offset': 0.5,
-                    'text-justify': 'auto'
-                }
-            });
-            bookings.forEach(function (booking) {
-                if(booking && booking.lat && booking.lng){
-                    var marker = new goongjs.Marker()
-                        .setLngLat([booking.lng, booking.lat])
-                        .addTo(map);
-                    bounds.extend(new goongjs.LngLat(booking.lng, booking.lat));
-                }
-            })
-            map.fitBounds(bounds, 60);
+                    // Add a GeoJSON source containing place coordinates and information.
+                    map.addSource('places', {
+                        'type': 'geojson',
+                        'data': places
+                    });
 
+                    map.addLayer({
+                        'id': 'places',
+                        'type': 'symbol',
+                        'source': 'places',
+                        'layout': {
+                            'icon-image': 'custom-marker',
+                            'icon-allow-overlap': true
+                        }
+                    });
+                    bookings.forEach(function (booking) {
+                        if(booking && booking.lat && booking.lng){
+                            // var marker = new goongjs.Marker()
+                            //     .setLngLat([booking.lng, booking.lat])
+                            //     .addTo(map);
+                            bounds.extend(new goongjs.LngLat(booking.lng, booking.lat));
+
+                            // var popup = new goongjs.Popup({ offset: 25 }).setText(
+                            //     'The President Ho Chi Minh Mausoleum is a mausoleum which serves as the resting place of Vietnamese Revolutionary leader & President Ho Chi Minh in Hanoi, Vietnam'
+                            // );
+                            // marker.setPopup(popup).addTo(map);
+                        }
+                    })
+                    map.fitBounds(bounds, 60);
+
+                    // When a click event occurs on a feature in the places layer, open a popup at the
+                    // location of the feature, with description HTML from its properties.
+                    map.on('click', 'places', function (e) {
+                        var coordinates = e.features[0].geometry.coordinates.slice();
+                        var description = e.features[0].properties.description;
+
+                        map.flyTo({
+                            center: e.features[0].geometry.coordinates
+                        });
+                        // Ensure that if the map is zoomed out such that multiple
+                        // copies of the feature are visible, the popup appears
+                        // over the copy being pointed to.
+                        while (Math.abs(e.lngLat.lng - coordinates[0]) > 180) {
+                            coordinates[0] += e.lngLat.lng > coordinates[0] ? 360 : -360;
+                        }
+
+                        new goongjs.Popup()
+                            .setLngLat(coordinates)
+                            .setHTML(description)
+                            .addTo(map);
+                    });
+
+
+                    // Change the cursor to a pointer when the mouse is over the places layer.
+                    map.on('mouseenter', 'places', function () {
+                        map.getCanvas().style.cursor = 'pointer';
+                    });
+
+                    // Change it back to a pointer when it leaves.
+                    map.on('mouseleave', 'places', function () {
+                        map.getCanvas().style.cursor = '';
+                    });
+                })
         });
     </script>
 
