@@ -1,12 +1,14 @@
 @php
     $bookings = \App\Models\Booking::where('tour_id', 1)->where('tour_type', 1)->whereIn('status', [1,2])->where('use_date', request()->query('date', date('Y-m-d')))->get();
     $data = [];
+    $classes = ['blue', 'red'];
     foreach ($bookings as $booking){
         if($booking->location){
             $data[] = [
                 'lat' => $booking->location->latitude,
                 'lng' => $booking->location->longitude,
-                'name' => $booking->name
+                'name' => $booking->name,
+                'class' => $classes[array_rand($classes)]
             ];
         }
     }
@@ -463,7 +465,8 @@
                 return {
                     'type': 'Feature',
                     'properties': {
-                        'description': booking.name
+                        'description': booking.name,
+                        'icon': booking.class == 'blue' ? 'custom-marker' : 'custom-marker-red'
                     },
                     'geometry': {
                         'type': 'Point',
@@ -479,6 +482,10 @@
                     if (error) throw error;
                     map.addImage('custom-marker', image);
 
+                    map.loadImage('http://maps.google.com/mapfiles/ms/icons/red.png', function (err, image) {
+                        map.addImage('custom-marker-red', image);
+                    })
+
                     // Add a GeoJSON source containing place coordinates and information.
                     map.addSource('places', {
                         'type': 'geojson',
@@ -490,7 +497,7 @@
                         'type': 'symbol',
                         'source': 'places',
                         'layout': {
-                            'icon-image': 'custom-marker',
+                            'icon-image': '{icon}',
                             'icon-allow-overlap': true
                         }
                     });
